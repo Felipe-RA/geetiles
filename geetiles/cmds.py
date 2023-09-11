@@ -221,7 +221,7 @@ def build_grid(aoi, chip_size_meters):
     
     # make a grid of points using utm crs
     aoi_utm = utils.get_utm_crs(*list(aoi.centroid.coords)[0])
-    aoim = gpd.GeoDataFrame({'geometry': [aoi]}, crs=epsg4326).to_crs(aoi_utm).geometry[0]
+    aoim = gpd.GeoDataFrame({'geometry': [aoi.exterior]}, crs=epsg4326).to_crs(aoi_utm).geometry[0]
 
     rcoords = np.r_[aoim.envelope.boundary.coords]
     minx, miny = rcoords.min(axis=0)
@@ -259,13 +259,13 @@ def build_grid(aoi, chip_size_meters):
                                      [clon+delta_degrees_lon, clat+delta_degrees_lat],
                                      [clon+delta_degrees_lon, clat-delta_degrees_lat],
                                      [clon-delta_degrees_lon, clat-delta_degrees_lat]])    
-        return part    
+        return part.exterior    
     
     
     # create a polygon at each point
     print (f"inspecting {gridx*gridy} chips", flush=True)
 
-    parts = utils.mParallel(n_jobs=-1, verbose=30)(delayed(get_polygon)(m, gx, gy, minx, miny) \
+    parts = utils.Parallel(n_jobs=-1, verbose=30)(delayed(get_polygon)(m, gx, gy, minx, miny) \
                                             for gx,gy in itertools.product(range(gridx), range(gridy)))
     parts = [i for i in parts if i is not None and aoi.intersects(i)]
     parts = gpd.GeoDataFrame(parts, columns=['geometry'], crs=epsg4326)
