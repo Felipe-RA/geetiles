@@ -204,7 +204,7 @@ def make_grid(aoi_wkt_file, chip_size_meters, aoi_name, dest_dir):
     parts = partitions.PartitionSet(aoi_name, data=grid)
     print()
     parts.save_as(dest_dir, "aschips")
-    return parts.data.exterior
+    return parts.data
 
 def build_grid(aoi, chip_size_meters):
     """
@@ -221,7 +221,7 @@ def build_grid(aoi, chip_size_meters):
     
     # make a grid of points using utm crs
     aoi_utm = utils.get_utm_crs(*list(aoi.centroid.coords)[0])
-    aoim = gpd.GeoDataFrame({'geometry': [aoi]}, crs=epsg4326).to_crs(aoi_utm).geometry[0]
+    aoim = gpd.GeoDataFrame({'geometry': [aoi.exterior]}, crs=epsg4326).to_crs(aoi_utm).geometry[0]
 
     rcoords = np.r_[aoim.envelope.boundary.coords]
     minx, miny = rcoords.min(axis=0)
