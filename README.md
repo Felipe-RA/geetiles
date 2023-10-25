@@ -8,7 +8,7 @@ Uses the [Google Earth Engine High Volume Endpoint](https://developers.google.co
 
 install with
 
-    pip install geetiles
+    pip install git+https://github.com/Felipe-RA/geetiles
 
 
 ### 1. create grid on a given area of interest as wkt
