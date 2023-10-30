@@ -18,6 +18,7 @@ import rasterio
 from skimage.transform import resize
 from rasterio.transform import from_origin
 from scipy.ndimage import rotate
+from joblib import Parallel
 
 from . import partitions
 from . import utils
@@ -221,7 +222,7 @@ def build_grid(aoi, chip_size_meters):
     
     # make a grid of points using utm crs
     aoi_utm = utils.get_utm_crs(*list(aoi.centroid.coords)[0])
-    aoim = gpd.GeoDataFrame({'geometry': [aoi.exterior]}, crs=epsg4326).to_crs(aoi_utm).geometry[0]
+    aoim = gpd.GeoDataFrame({'geometry': [aoi]}, crs=epsg4326).to_crs(aoi_utm).geometry[0]
 
     rcoords = np.r_[aoim.envelope.boundary.coords]
     minx, miny = rcoords.min(axis=0)
@@ -259,13 +260,13 @@ def build_grid(aoi, chip_size_meters):
                                      [clon+delta_degrees_lon, clat+delta_degrees_lat],
                                      [clon+delta_degrees_lon, clat-delta_degrees_lat],
                                      [clon-delta_degrees_lon, clat-delta_degrees_lat]])    
-        return part.exterior    
+        return part    
     
     
     # create a polygon at each point
     print (f"inspecting {gridx*gridy} chips", flush=True)
 
-    parts = utils.Parallel(n_jobs=-1, verbose=30)(delayed(get_polygon)(m, gx, gy, minx, miny) \
+    parts = Parallel(n_jobs=-1, verbose=30)(delayed(get_polygon)(m, gx, gy, minx, miny) \
                                             for gx,gy in itertools.product(range(gridx), range(gridy)))
     parts = [i for i in parts if i is not None and aoi.intersects(i)]
     parts = gpd.GeoDataFrame(parts, columns=['geometry'], crs=epsg4326)
@@ -548,7 +549,7 @@ def make_mosaic(basedir, meters_per_pixel, dest_file, channels=None):
     fnames = sorted(os.listdir(basedir))
     
     print (f"computing resulting mosaic image size for {len(fnames)} files", flush=True) 
-    bounds = utils.mParallel(n_jobs=-1, verbose=30)(delayed(get_bounds)(f"{basedir}/{fname}") for fname in fnames)
+    bounds = Parallel(n_jobs=-1, verbose=30)(delayed(get_bounds)(f"{basedir}/{fname}") for fname in fnames)
     bounds = np.r_[bounds]
 
     # compute meters utm corresponding to the mean location of all geometries
@@ -576,7 +577,7 @@ def make_mosaic(basedir, meters_per_pixel, dest_file, channels=None):
     src.close()
     
     print ("\nreading and resizing images", flush=True)
-    imgs_and_coords = utils.mParallel(n_jobs=-1, verbose=30)(delayed(get_resized_img_with_pixel_coords)(f"{basedir}/{fname}", utm_crs, min_lonlat_meters, meters_per_pixel) for fname in fnames)
+    imgs_and_coords = Parallel(n_jobs=-1, verbose=30)(delayed(get_resized_img_with_pixel_coords)(f"{basedir}/{fname}", utm_crs, min_lonlat_meters, meters_per_pixel) for fname in fnames)
 
     print ("\nbuilding mosaic", flush=True)
     for x0,x1,y0,y1,img_resized in imgs_and_coords:
@@ -627,7 +628,7 @@ def cleanup(basedir):
     files = [i for i in os.listdir(basedir) if i.endswith(".tif")]
 
     # try to open each file
-    r = utils.mParallel(verbose=30, n_jobs=-1)(delayed(checkfile)( f"{basedir}/{file}") for file in files)
+    r = Parallel(verbose=30, n_jobs=-1)(delayed(checkfile)( f"{basedir}/{file}") for file in files)
 
     # remove the files that could not be open
     errors = [i for i in r if i.startswith("ERROR") ]
@@ -726,7 +727,7 @@ def make_mosaic_for_tilevalues(tiles_file, meters_per_pixel, dest_file, dtype=np
 
 
     print ("\nplacing values in mosaic", flush=True)
-    imgs_and_coords = utils.mParallel(n_jobs=-1, verbose=30)(delayed(get_pixels_with_coords)(t.geometry.bounds, t.value, utm_crs, min_lonlat_meters, meters_per_pixel, dtype) for _,t in zc.iterrows())
+    imgs_and_coords = Parallel(n_jobs=-1, verbose=30)(delayed(get_pixels_with_coords)(t.geometry.bounds, t.value, utm_crs, min_lonlat_meters, meters_per_pixel, dtype) for _,t in zc.iterrows())
 
     # compute bounding rectangle bounds in meters
     min_lonlat_meters, max_lonlat_meters = gpd.GeoDataFrame([], 
