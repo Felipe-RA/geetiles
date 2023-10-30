@@ -6,6 +6,7 @@ import geopandas as gpd
 import shapely as sh
 import pandas as pd
 from skimage.io import imread
+from joblib import Parallel
 
 from pyproj import CRS
 from joblib import delayed
@@ -103,7 +104,7 @@ class PartitionSet:
                 aligned_part = part
             return aligned_part
 
-        parts = utils.mParallel(n_jobs=n_jobs, verbose=30)(delayed(f)(part) for part in self.data.geometry.values)
+        parts = Parallel(n_jobs=n_jobs, verbose=30)(delayed(f)(part) for part in self.data.geometry.values)
         self.data.geometry = parts
 
         self.data['identifier'] =  [utils.get_region_hash(i) for i in self.data.geometry]
@@ -263,7 +264,7 @@ class PartitionSet:
         if n_jobs==1:
             r = [f(i.identifier, i.geometry) for i in pbar(self.data.itertuples(), max_value=len(self.data))]
         else:
-            r = utils.mParallel(n_jobs=n_jobs, verbose=30)(delayed(f)(i.identifier, i.geometry) for i in self.data.itertuples())
+            r = Parallel(n_jobs=n_jobs, verbose=30)(delayed(f)(i.identifier, i.geometry) for i in self.data.itertuples())
         self.data[f"{labels_dataset_def.get_dataset_name()}_proportions"] = r
         print()
         self.save()
